@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.26;
 
 /// @dev Math functions.
 /// @dev Modified from Solmate (https://github.com/Rari-Capital/solmate/blob/main/src/utils/FixedPointMathLib.sol)
