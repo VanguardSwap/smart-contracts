@@ -1,6 +1,10 @@
 name: Vanguard
 
-on: workflow_dispatch
+on:
+  push:
+    branches: [ master, develop ]
+  pull_request:
+    branches: [ master, develop ]
 
 env:
   FOUNDRY_PROFILE: ci
