@@ -17,9 +17,15 @@ interface IPoolMaster is IFeeManager, IForwarderRegistry {
         bytes data
     );
 
+
     event UpdateForwarderRegistry(address indexed newForwarderRegistry);
 
     event UpdateFeeManager(address indexed newFeeManager);
+
+    error NotWhitelistedFactory();
+    error PoolAlreadyExists();
+    error InvalidFactory();
+    error RegisterPoolZeroAddress();
 
     function vault() external view returns (address);
 

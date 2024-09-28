@@ -2,23 +2,30 @@
 
 pragma solidity ^0.8.0;
 
-import "../../interfaces/token/IERC20.sol";
-import "../../interfaces/master/IPoolMaster.sol";
+import {IERC20Metadata as IERC20} from "openzeppelin-contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
-import "../BasePoolFactory.sol";
-
-import "./VanguardStablePool.sol";
+import {IPoolMaster} from "../../interfaces/master/IPoolMaster.sol";
+import {BasePoolFactory} from "../BasePoolFactory.sol";
+import {VanguardStablePool} from "./VanguardStablePool.sol";
 
 contract VanguardStablePoolFactory is BasePoolFactory {
-    constructor(address _master) BasePoolFactory(_master) {
-    }
+    constructor(address _master) BasePoolFactory(_master) {}
 
-    function _createPool(address token0, address token1) internal override returns (address pool) {
+    function _createPool(
+        address token0,
+        address token1
+    ) internal override returns (address pool) {
         // Tokens with decimals more than 18 are not supported and will lead to reverts.
         uint token0PrecisionMultiplier = 10 ** (18 - IERC20(token0).decimals());
         uint token1PrecisionMultiplier = 10 ** (18 - IERC20(token1).decimals());
 
-        bytes memory deployData = abi.encode(token0, token1, token0PrecisionMultiplier, token1PrecisionMultiplier);
+        bytes memory deployData = abi.encode(
+            token0,
+            token1,
+            token0PrecisionMultiplier,
+            token1PrecisionMultiplier
+        );
+
         cachedDeployData = deployData;
 
         // Remove precision multipliers from salt and config.

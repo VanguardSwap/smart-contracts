@@ -5,6 +5,14 @@ pragma solidity ^0.8.0;
 /// @notice The manager contract to control fees.
 /// Management functions are omitted.
 interface IFeeManager {
+    event SetDefaultSwapFee(uint16 indexed poolType, uint24 fee);
+    event SetTokenSwapFee(address indexed tokenIn, address indexed tokenOut, uint24 fee);
+    event SetDefaultProtocolFee(uint16 indexed poolType, uint24 fee);
+    event SetPoolProtocolFee(address indexed pool, uint24 fee);
+    event SetFeeRecipient(address indexed previousFeeRecipient, address indexed newFeeRecipient);
+
+    error InvalidFee();
+
     function getSwapFee(
         address pool,
         address sender,

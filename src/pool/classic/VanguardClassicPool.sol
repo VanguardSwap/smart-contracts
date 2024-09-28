@@ -3,42 +3,31 @@
 pragma solidity ^0.8.0;
 
 import {Math} from "../../libraries/Math.sol";
-import {StableMath} from "../../libraries/StableMath.sol";
 import {ERC20Permit2} from "../../libraries/ERC20Permit2.sol";
 import {MetadataHelper} from "../../libraries/MetadataHelper.sol";
 import {ReentrancyGuard} from "openzeppelin-contracts/utils/ReentrancyGuard.sol";
 
 import {ICallback} from "../../interfaces/ICallback.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
-import {IStablePool} from "../../interfaces/pool/IStablePool.sol";
+import {IClassicPool} from "../../interfaces/pool/IClassicPool.sol";
 import {IPoolMaster} from "../../interfaces/master/IPoolMaster.sol";
 import {IFeeRecipient} from "../../interfaces/master/IFeeRecipient.sol";
 import {IPoolFactory} from "../../interfaces/factory/IPoolFactory.sol";
 
-contract VanguardStablePool is IStablePool, ERC20Permit2, ReentrancyGuard {
+contract VanguardClassicPool is IClassicPool, ERC20Permit2, ReentrancyGuard {
     using Math for uint;
 
-    /// @dev The max adjusted reserve of two tokens to avoid overflow.
-    uint private constant MAXIMUM_XP = 3802571709128108338056982581425910818;
     uint private constant MINIMUM_LIQUIDITY = 1000;
     uint private constant MAX_FEE = 1e5; /// @dev 100%.
 
-    /// @dev Pool type `2` for stable pools.
-    uint16 public constant override poolType = 2;
+    /// @dev Pool type `1` for classic pools.
+    uint16 public constant override poolType = 1;
 
     address public immutable override master;
     address public immutable override vault;
 
     address public immutable override token0;
     address public immutable override token1;
-
-    /// @dev Multipliers for each pooled token's precision to get to the pool precision decimals
-    /// which is agnostic to the pool, but usually is 18.
-    /// For example, TBTC has 18 decimals, so the multiplier should be 10 ** (18 - 18) = 1.
-    /// WBTC has 8, so the multiplier should be 10 ** (18 - 8) => 10 ** 10.
-    /// The value is only for stable pools, and has no effects on non-stable pools.
-    uint public immutable override token0PrecisionMultiplier;
-    uint public immutable override token1PrecisionMultiplier;
 
     /// @dev Pool reserve of each pool token as of immediately after the most recent balance event.
     /// The value is used to measure growth in invariant on mints and input tokens on swaps.
@@ -53,29 +42,25 @@ contract VanguardStablePool is IStablePool, ERC20Permit2, ReentrancyGuard {
     /// @dev Factory must ensures that the parameters are valid.
     constructor() {
         (bytes memory _deployData) = IPoolFactory(msg.sender).getDeployData();
-        (address _token0, address _token1, uint _token0PrecisionMultiplier, uint _token1PrecisionMultiplier) = abi.decode(
-            _deployData, (address, address, uint, uint)
-        );
+        (address _token0, address _token1) = abi.decode(_deployData, (address, address));
         address _master = IPoolFactory(msg.sender).master();
 
         master = _master;
         vault = IPoolMaster(_master).vault();
-        (token0, token1, token0PrecisionMultiplier, token1PrecisionMultiplier) = (
-            _token0, _token1, _token0PrecisionMultiplier, _token1PrecisionMultiplier
-        );
+        (token0, token1) = (_token0, _token1);
 
         // try to set symbols for the LP token
         (bool _success0, string memory _symbol0) = MetadataHelper.getSymbol(_token0);
         (bool _success1, string memory _symbol1) = MetadataHelper.getSymbol(_token1);
         if (_success0 && _success1) {
             _initialize(
-                string(abi.encodePacked("Vanguard", _symbol0, "/", _symbol1, " Stable LP")),
-                string(abi.encodePacked(_symbol0, "/", _symbol1, " sVLP"))
+                string(abi.encodePacked("Vanguard ", _symbol0, "/", _symbol1, " Classic LP")),
+                string(abi.encodePacked(_symbol0, "/", _symbol1, " cVLP"))
             );
         } else {
             _initialize(
-                "Vanguard Stable LP",
-                "sVLP"
+                "Vanguard Classic LP",
+                "cVLP"
             );
         }
     }
@@ -147,7 +132,9 @@ contract VanguardStablePool is IStablePool, ERC20Permit2, ReentrancyGuard {
         }
 
         // Mints liquidity for recipient.
-        if (params.liquidity == 0) revert InsufficientLiquidityMinted();
+        if (params.liquidity == 0) {
+            revert InsufficientLiquidityMinted();
+        }
         _mint(params.to, params.liquidity);
 
         // Calls callback with data.
@@ -299,6 +286,9 @@ contract VanguardStablePool is IStablePool, ERC20Permit2, ReentrancyGuard {
             params.sender = _sender;
             params.callbackData = _callbackData;
 
+            /// @dev Note the `tokenOut` parameter can be decided by the caller, and the correctness is not guaranteed.
+            /// Additional checks MUST be performed in callback to ensure the `tokenOut` is one of the pools tokens if the sender
+            /// is not a trusted source to avoid potential issues.
             ICallback(_callback).vanguardBaseBurnSingleCallback(params);
         }
 
@@ -355,10 +345,10 @@ contract VanguardStablePool is IStablePool, ERC20Permit2, ReentrancyGuard {
         }
 
         // Checks overflow.
-        if (params.balance0 * token0PrecisionMultiplier > MAXIMUM_XP) {
+        if (params.balance0 > type(uint128).max) {
             revert Overflow();
         }
-        if (params.balance1 * token1PrecisionMultiplier > MAXIMUM_XP) {
+        if (params.balance1 > type(uint128).max) {
             revert Overflow();
         }
 
@@ -371,6 +361,9 @@ contract VanguardStablePool is IStablePool, ERC20Permit2, ReentrancyGuard {
             params.sender = _sender;
             params.callbackData = _callbackData;
 
+            /// @dev Note the `tokenIn` parameter can be decided by the caller, and the correctness is not guaranteed.
+            /// Additional checks MUST be performed in callback to ensure the `tokenIn` is one of the pools tokens if the sender
+            /// is not a trusted source to avoid potential issues.
             ICallback(_callback).vanguardBaseSwapCallback(params);
         }
 
@@ -456,7 +449,7 @@ contract VanguardStablePool is IStablePool, ERC20Permit2, ReentrancyGuard {
                         _mint(_feeRecipient, _liquidity);
 
                         // Notifies the fee recipient.
-                        IFeeRecipient(_feeRecipient).notifyFees(2, address(this), _liquidity, _protocolFee, "");
+                        IFeeRecipient(_feeRecipient).notifyFees(1, address(this), _liquidity, _protocolFee, "");
 
                         _totalSupply += _liquidity; // update cached value.
                     }
@@ -492,27 +485,17 @@ contract VanguardStablePool is IStablePool, ERC20Permit2, ReentrancyGuard {
         uint _reserve0,
         uint _reserve1,
         bool _token0In
-    ) private view returns (uint _dy, uint _feeIn) {
+    ) private pure returns (uint _dy, uint _feeIn) {
         if (_amountIn == 0) {
             _dy = 0;
         } else {
-            uint _adjustedReserve0 = _reserve0 * token0PrecisionMultiplier;
-            uint _adjustedReserve1 = _reserve1 * token1PrecisionMultiplier;
-
-            _feeIn = (_amountIn * _swapFee) / MAX_FEE;
-            uint _feeDeductedAmountIn = _amountIn - _feeIn;
-            uint _d = StableMath.computeDFromAdjustedBalances(_adjustedReserve0, _adjustedReserve1);
+            uint _amountInWithFee = _amountIn * (MAX_FEE - _swapFee);
+            _feeIn = _amountIn * _swapFee / MAX_FEE;
 
             if (_token0In) {
-                uint _x = _adjustedReserve0 + (_feeDeductedAmountIn * token0PrecisionMultiplier);
-                uint _y = StableMath.getY(_x, _d);
-                _dy = _adjustedReserve1 - _y - 1;
-                _dy /= token1PrecisionMultiplier;
+                _dy = (_amountInWithFee * _reserve1) / (_reserve0 * MAX_FEE + _amountInWithFee);
             } else {
-                uint _x = _adjustedReserve1 + (_feeDeductedAmountIn * token1PrecisionMultiplier);
-                uint _y = StableMath.getY(_x, _d);
-                _dy = _adjustedReserve0 - _y - 1;
-                _dy /= token0PrecisionMultiplier;
+                _dy = (_amountInWithFee * _reserve0) / (_reserve1 * MAX_FEE + _amountInWithFee);
             }
         }
     }
@@ -523,46 +506,25 @@ contract VanguardStablePool is IStablePool, ERC20Permit2, ReentrancyGuard {
         uint _reserve0,
         uint _reserve1,
         bool _token0Out
-    ) private view returns (uint _dx) {
+    ) private pure returns (uint _dx) {
         if (_amountOut == 0) {
             _dx = 0;
         } else {
-            unchecked {
-                uint _adjustedReserve0 = _reserve0 * token0PrecisionMultiplier;
-                uint _adjustedReserve1 = _reserve1 * token1PrecisionMultiplier;
-                uint _d = StableMath.computeDFromAdjustedBalances(_adjustedReserve0, _adjustedReserve1);
-
-                if (_token0Out) {
-                    uint _y = _adjustedReserve0 - (_amountOut * token0PrecisionMultiplier);
-                    if (_y <= 1) {
-                        return 1;
-                    }
-                    uint _x = StableMath.getY(_y, _d);
-                    _dx = MAX_FEE * (_x - _adjustedReserve1) / (MAX_FEE - _swapFee) + 1;
-                    _dx /= token1PrecisionMultiplier;
-                } else {
-                    uint _y = _adjustedReserve1 - (_amountOut * token1PrecisionMultiplier);
-                    if (_y <= 1) {
-                        return 1;
-                    }
-                    uint _x = StableMath.getY(_y, _d);
-                    _dx = MAX_FEE * (_x - _adjustedReserve0) / (MAX_FEE - _swapFee) + 1;
-                    _dx /= token0PrecisionMultiplier;
-                }
+            if (_token0Out) {
+                _dx = (_reserve1 * _amountOut * MAX_FEE) / ((_reserve0 - _amountOut) * (MAX_FEE - _swapFee)) + 1;
+            } else {
+                _dx = (_reserve0 * _amountOut * MAX_FEE) / ((_reserve1 - _amountOut) * (MAX_FEE - _swapFee)) + 1;
             }
         }
     }
 
-    function _computeInvariant(uint _reserve0, uint _reserve1) private view returns (uint _invariant) {
-        /// @dev Gets D, the StableSwap invariant, based on a set of balances and a particular A.
-        /// See the StableSwap paper for details.
-        /// Originally https://github.com/saddle-finance/saddle-contract/blob/0b76f7fb519e34b878aa1d58cffc8d8dc0572c12/contracts/SwapUtils.sol#L319.
-        /// Returns the invariant, at the precision of the pool.
-        unchecked {
-            uint _adjustedReserve0 = _reserve0 * token0PrecisionMultiplier;
-            uint _adjustedReserve1 = _reserve1 * token1PrecisionMultiplier;
-            if (_adjustedReserve0 > MAXIMUM_XP || _adjustedReserve1 > MAXIMUM_XP) revert Overflow();
-            _invariant = StableMath.computeDFromAdjustedBalances(_adjustedReserve0, _adjustedReserve1);
+    function _computeInvariant(uint _reserve0, uint _reserve1) private pure returns (uint _invariant) {
+        if (_reserve0 > type(uint128).max) {
+            revert Overflow();
         }
+        if (_reserve1 > type(uint128).max) {
+            revert Overflow();
+        }
+        _invariant = (_reserve0 * _reserve1).sqrt();
     }
 }
