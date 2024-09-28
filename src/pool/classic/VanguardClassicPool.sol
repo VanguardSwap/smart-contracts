@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.26;
 
 import {Math} from "../../libraries/Math.sol";
 import {ERC20Permit2} from "../../libraries/ERC20Permit2.sol";

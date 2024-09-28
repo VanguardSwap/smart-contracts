@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.26;
 
 interface IERC165 {
     /// @notice Query if a contract implements an interface

@@ -1,4 +1,4 @@
-name: test
+name: Vanguard
 
 on: workflow_dispatch
 
@@ -6,14 +6,15 @@ env:
   FOUNDRY_PROFILE: ci
 
 jobs:
-  check:
+  build-and-test:
     strategy:
       fail-fast: true
 
-    name: Foundry project
+    name: Foundry build & tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout sources
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 

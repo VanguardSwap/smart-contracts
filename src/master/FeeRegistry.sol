@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.26;
 
 import {IPoolMaster} from "../interfaces/master/IPoolMaster.sol";
 import {IFeeRegistry} from "../interfaces/master/IFeeRegistry.sol";
