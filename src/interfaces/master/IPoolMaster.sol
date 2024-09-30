@@ -9,6 +9,8 @@ import {IForwarderRegistry} from "./IForwarderRegistry.sol";
 /// Inheriting the fee manager interface to support fee queries.
 interface IPoolMaster is IFeeManager, IForwarderRegistry {
     event SetFactoryWhitelisted(address indexed factory, bool whitelisted);
+    event UpdateForwarderRegistry(address indexed newForwarderRegistry);
+    event UpdateFeeManager(address indexed newFeeManager);
 
     event RegisterPool(
         address indexed factory,
@@ -16,11 +18,6 @@ interface IPoolMaster is IFeeManager, IForwarderRegistry {
         uint16 indexed poolType,
         bytes data
     );
-
-
-    event UpdateForwarderRegistry(address indexed newForwarderRegistry);
-
-    event UpdateFeeManager(address indexed newFeeManager);
 
     error NotWhitelistedFactory();
     error PoolAlreadyExists();
@@ -51,7 +48,15 @@ interface IPoolMaster is IFeeManager, IForwarderRegistry {
 
     function getPool(bytes32) external view returns (address);
 
-    function createPool(address factory, bytes calldata data) external returns (address pool);
+    function createPool(
+        address factory,
+        address tokenA,
+        address tokenB
+    ) external returns (address pool);
 
-    function registerPool(address pool, uint16 poolType, bytes calldata data) external;
+    function registerPool(
+        address pool,
+        uint16 poolType,
+        bytes calldata data
+    ) external;
 }

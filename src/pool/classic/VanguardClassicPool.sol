@@ -40,8 +40,7 @@ contract VanguardClassicPool is IClassicPool, ERC20Permit2, ReentrancyGuard {
     uint public override invariantLast;
 
     /// @dev Factory must ensures that the parameters are valid.
-    constructor() {
-        (bytes memory _deployData) = IPoolFactory(msg.sender).getDeployData();
+    constructor(bytes memory _deployData) {
         (address _token0, address _token1) = abi.decode(_deployData, (address, address));
         address _master = IPoolFactory(msg.sender).master();
 

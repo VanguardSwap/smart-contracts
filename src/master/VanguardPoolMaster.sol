@@ -128,11 +128,12 @@ contract VanguardPoolMaster is IPoolMaster, Ownable2Step {
     /// @dev Create a pool with deployment data and, register it via the factory.
     function createPool(
         address factory,
-        bytes calldata data
-    ) external override returns (address pool) {
+        address tokenA,
+        address tokenB
+    ) external returns (address pool) {
         // The factory have to call `registerPool` to register the pool.
         // The pool whitelist is checked in `registerPool`.
-        pool = IPoolFactory(factory).createPool(data);
+        pool = IPoolFactory(factory).createPool(tokenA, tokenB);
     }
 
     /// @dev Register a pool to the mapping by its config. Can only be called by factories.

@@ -18,10 +18,6 @@ abstract contract BasePoolFactory is IBasePoolFactory {
         master = _master;
     }
 
-    function getDeployData() external view override returns (bytes memory deployData) {
-        deployData = cachedDeployData;
-    }
-
     function getSwapFee(
         address pool,
         address sender,
@@ -29,24 +25,28 @@ abstract contract BasePoolFactory is IBasePoolFactory {
         address tokenOut,
         bytes calldata data
     ) external view override returns (uint24 swapFee) {
-        swapFee = IPoolMaster(master).getSwapFee(pool, sender, tokenIn, tokenOut, data);
+        swapFee = IPoolMaster(master).getSwapFee(
+            pool,
+            sender,
+            tokenIn,
+            tokenOut,
+            data
+        );
     }
 
-    function createPool(bytes calldata data) external override returns (address pool) {
-        (address tokenA, address tokenB) = abi.decode(data, (address, address));
-
+    function createPool(
+        address tokenA,
+        address tokenB
+    ) external override returns (address pool) {
         // Perform safety checks.
-        if (tokenA == tokenB) {
-            revert InvalidTokens();
-        }
+        if (tokenA == tokenB) revert InvalidTokens();
 
         // Sort tokens.
         if (tokenB < tokenA) {
             (tokenA, tokenB) = (tokenB, tokenA);
         }
-        if (tokenA == address(0)) {
-            revert InvalidTokens();
-        }
+
+        if (tokenA == address(0)) revert InvalidTokens();
 
         // Underlying implementation to deploy the pools and register them.
         pool = _createPool(tokenA, tokenB);
@@ -59,6 +59,8 @@ abstract contract BasePoolFactory is IBasePoolFactory {
         emit PoolCreated(tokenA, tokenB, pool);
     }
 
-    function _createPool(address tokenA, address tokenB) internal virtual returns (address) {
-    }
+    function _createPool(
+        address tokenA,
+        address tokenB
+    ) internal virtual returns (address) {}
 }
