@@ -28,11 +28,8 @@ contract VanguardStablePoolFactory is BasePoolFactory {
 
         cachedDeployData = deployData;
 
-        // Remove precision multipliers from salt and config.
-        deployData = abi.encode(token0, token1);
-
-        bytes32 salt = keccak256(deployData);
-        pool = address(new VanguardStablePool{salt: salt}()); // this will prevent duplicated pools.
+        bytes32 salt = keccak256(abi.encode(token0, token1));
+        pool = address(new VanguardStablePool{salt: salt}(deployData)); // this will prevent duplicated pools.
 
         // Register the pool with config.
         IPoolMaster(master).registerPool(pool, 2, deployData);

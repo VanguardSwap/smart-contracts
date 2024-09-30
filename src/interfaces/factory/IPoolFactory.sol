@@ -5,7 +5,5 @@ pragma solidity ^0.8.26;
 interface IPoolFactory {
     function master() external view returns (address);
 
-    function getDeployData() external view returns (bytes memory);
-
-    function createPool(bytes calldata data) external returns (address pool);
+    function createPool(address tokenA, address tokenB) external returns (address pool);
 }

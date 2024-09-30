@@ -9,10 +9,12 @@ import {BasePoolFactory} from "../BasePoolFactory.sol";
 import {VanguardClassicPool} from "./VanguardClassicPool.sol";
 
 contract VanguardClassicPoolFactory is BasePoolFactory {
-    constructor(address _master) BasePoolFactory(_master) {
-    }
+    constructor(address _master) BasePoolFactory(_master) {}
 
-    function _createPool(address token0, address token1) internal override returns (address pool) {
+    function _createPool(
+        address token0,
+        address token1
+    ) internal override returns (address pool) {
         // Perform sanity checks.
         IERC20(token0).balanceOf(address(this));
         IERC20(token1).balanceOf(address(this));
@@ -22,7 +24,7 @@ contract VanguardClassicPoolFactory is BasePoolFactory {
 
         // The salt is same with deployment data.
         bytes32 salt = keccak256(deployData);
-        pool = address(new VanguardClassicPool{salt: salt}()); // this will prevent duplicated pools.
+        pool = address(new VanguardClassicPool{salt: salt}(deployData)); // this will prevent duplicated pools.
 
         // Register the pool. The config is same with deployment data.
         IPoolMaster(master).registerPool(pool, 1, deployData);
