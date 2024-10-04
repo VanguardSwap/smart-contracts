@@ -76,12 +76,24 @@ contract VanguardStablePool is IStablePool, ERC20Permit2, ReentrancyGuard {
         );
 
         // try to set symbols for the LP token
-        (bool _success0, string memory _symbol0) = MetadataHelper.getSymbol(_token0);
-        (bool _success1, string memory _symbol1) = MetadataHelper.getSymbol(_token1);
+        (bool _success0, string memory _symbol0) = MetadataHelper.getSymbol(
+            _token0
+        );
+        (bool _success1, string memory _symbol1) = MetadataHelper.getSymbol(
+            _token1
+        );
 
         if (_success0 && _success1) {
             _initialize(
-                string(abi.encodePacked("Vanguard", _symbol0, "/", _symbol1, " Stable LP")),
+                string(
+                    abi.encodePacked(
+                        "Vanguard",
+                        _symbol0,
+                        "/",
+                        _symbol1,
+                        " Stable LP"
+                    )
+                ),
                 string(abi.encodePacked(_symbol0, "/", _symbol1, " sVLP"))
             );
         } else {
@@ -89,12 +101,7 @@ contract VanguardStablePool is IStablePool, ERC20Permit2, ReentrancyGuard {
         }
     }
 
-    function getAssets()
-        external
-        view
-        override
-        returns (address[] memory assets)
-    {
+    function getAssets() external view returns (address[] memory assets) {
         assets = new address[](2);
         assets[0] = token0;
         assets[1] = token1;
@@ -118,14 +125,14 @@ contract VanguardStablePool is IStablePool, ERC20Permit2, ReentrancyGuard {
     /// @dev Mints LP tokens - should be called via the router after transferring pool tokens.
     /// The router should ensure that sufficient LP tokens are minted.
     function mint(
-        bytes calldata _data,
+        address _to,
         address _sender,
         address _callback,
         bytes calldata _callbackData
-    ) external override nonReentrant returns (uint) {
+    ) external nonReentrant returns (uint) {
         ICallback.BaseMintCallbackParams memory params;
 
-        params.to = abi.decode(_data, (address));
+        params.to = _to;
         (params.reserve0, params.reserve1) = (reserve0, reserve1);
         (params.balance0, params.balance1) = _balances();
 
@@ -217,14 +224,15 @@ contract VanguardStablePool is IStablePool, ERC20Permit2, ReentrancyGuard {
     /// @dev Burns LP tokens sent to this contract.
     /// The router should ensure that sufficient pool tokens are received.
     function burn(
-        bytes calldata _data,
+        uint8 _withdrawMode,
+        address _to,
         address _sender,
         address _callback,
         bytes calldata _callbackData
-    ) external override nonReentrant returns (TokenAmount[] memory _amounts) {
+    ) external nonReentrant returns (TokenAmount[] memory _amounts) {
         ICallback.BaseBurnCallbackParams memory params;
 
-        (params.to, params.withdrawMode) = abi.decode(_data, (address, uint8));
+        (params.to, params.withdrawMode) = (_to, _withdrawMode);
         (params.balance0, params.balance1) = _balances();
         params.liquidity = balanceOf[address(this)];
 
@@ -291,17 +299,21 @@ contract VanguardStablePool is IStablePool, ERC20Permit2, ReentrancyGuard {
     /// - i.e., the user gets a single token out by burning LP tokens.
     /// The router should ensure that sufficient pool tokens are received.
     function burnSingle(
-        bytes calldata _data,
+        uint8 _withdrawMode,
+        address _tokenOut,
+        address _to,
         address _sender,
         address _callback,
         bytes calldata _callbackData
-    ) external override nonReentrant returns (TokenAmount memory _tokenAmount) {
+    ) external nonReentrant returns (TokenAmount memory _tokenAmount) {
         ICallback.BaseBurnSingleCallbackParams memory params;
 
-        (params.tokenOut, params.to, params.withdrawMode) = abi.decode(
-            _data,
-            (address, address, uint8)
+        (params.tokenOut, params.to, params.withdrawMode) = (
+            _tokenOut,
+            _to,
+            _withdrawMode
         );
+
         (params.balance0, params.balance1) = _balances();
         params.liquidity = balanceOf[address(this)];
 
@@ -409,17 +421,21 @@ contract VanguardStablePool is IStablePool, ERC20Permit2, ReentrancyGuard {
     /// @dev Swaps one token for another - should be called via the router after transferring input tokens.
     /// The router should ensure that sufficient output tokens are received.
     function swap(
-        bytes calldata _data,
+        uint8 _withdrawMode,
+        address _tokenIn,
+        address _to,
         address _sender,
         address _callback,
         bytes calldata _callbackData
-    ) external override nonReentrant returns (TokenAmount memory _tokenAmount) {
+    ) external nonReentrant returns (TokenAmount memory _tokenAmount) {
         ICallback.BaseSwapCallbackParams memory params;
 
-        (params.tokenIn, params.to, params.withdrawMode) = abi.decode(
-            _data,
-            (address, address, uint8)
+        (params.tokenIn, params.to, params.withdrawMode) = (
+            _tokenIn,
+            _to,
+            _withdrawMode
         );
+
         (params.reserve0, params.reserve1) = (reserve0, reserve1);
         (params.balance0, params.balance1) = _balances();
 
