@@ -17,7 +17,7 @@ import {IPoolMaster} from "src/interfaces/master/IPoolMaster.sol";
 import {IStablePool} from "src/interfaces/pool/IStablePool.sol";
 import {IClassicPool} from "src/interfaces/pool/IClassicPool.sol";
 
-contract StablePoolFactoryTest is Test {
+contract BasePoolFactoryTest is Test {
     MockERC20 public tokenA = new MockERC20();
     MockERC20 public tokenB = new MockERC20();
     TestWETH9 public weth = new TestWETH9();

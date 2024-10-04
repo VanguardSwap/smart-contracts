@@ -41,7 +41,10 @@ contract VanguardClassicPool is IClassicPool, ERC20Permit2, ReentrancyGuard {
 
     /// @dev Factory must ensures that the parameters are valid.
     constructor(bytes memory _deployData) {
-        (address _token0, address _token1) = abi.decode(_deployData, (address, address));
+        (address _token0, address _token1) = abi.decode(
+            _deployData,
+            (address, address)
+        );
         address _master = IPoolFactory(msg.sender).master();
 
         master = _master;
@@ -49,29 +52,29 @@ contract VanguardClassicPool is IClassicPool, ERC20Permit2, ReentrancyGuard {
         (token0, token1) = (_token0, _token1);
 
         // try to set symbols for the LP token
-        (bool _success0, string memory _symbol0) = MetadataHelper.getSymbol(_token0);
+        (bool _success0, string memory _symbol0) = MetadataHelper.getSymbol( _token0);
         (bool _success1, string memory _symbol1) = MetadataHelper.getSymbol(_token1);
+
         if (_success0 && _success1) {
             _initialize(
                 string(abi.encodePacked("Vanguard ", _symbol0, "/", _symbol1, " Classic LP")),
                 string(abi.encodePacked(_symbol0, "/", _symbol1, " cVLP"))
             );
         } else {
-            _initialize(
-                "Vanguard Classic LP",
-                "cVLP"
-            );
+            _initialize("Vanguard Classic LP", "cVLP");
         }
     }
 
-    function getAssets() external view override returns (address[] memory assets) {
+    function getAssets() external view returns (address[] memory assets) {
         assets = new address[](2);
         assets[0] = token0;
         assets[1] = token1;
     }
 
     /// @dev Returns the verified sender address otherwise `address(0)`.
-    function _getVerifiedSender(address _sender) private view returns (address) {
+    function _getVerifiedSender(
+        address _sender
+    ) private view returns (address) {
         if (_sender != address(0)) {
             if (_sender != msg.sender) {
                 if (!IPoolMaster(master).isForwarder(msg.sender)) {
@@ -86,25 +89,32 @@ contract VanguardClassicPool is IClassicPool, ERC20Permit2, ReentrancyGuard {
     /// @dev Mints LP tokens - should be called via the router after transferring pool tokens.
     /// The router should ensure that sufficient LP tokens are minted.
     function mint(
-        bytes calldata _data,
+        address _to,
         address _sender,
         address _callback,
         bytes calldata _callbackData
-    ) external override nonReentrant returns (uint) {
+    ) external nonReentrant returns (uint) {
         ICallback.BaseMintCallbackParams memory params;
 
-        params.to = abi.decode(_data, (address));
+        params.to = _to;
         (params.reserve0, params.reserve1) = (reserve0, reserve1);
         (params.balance0, params.balance1) = _balances();
 
-        params.newInvariant = _computeInvariant(params.balance0, params.balance1);
+        params.newInvariant = _computeInvariant(
+            params.balance0,
+            params.balance1
+        );
+
         params.amount0 = params.balance0 - params.reserve0;
         params.amount1 = params.balance1 - params.reserve1;
-        //require(_amount0 != 0 && _amount1 != 0);
 
         // Gets swap fee for the sender.
         _sender = _getVerifiedSender(_sender);
-        uint _amount1Optimal = params.reserve0 == 0 ? 0 : (params.amount0 * params.reserve1) / params.reserve0;
+
+        uint _amount1Optimal = params.reserve0 == 0
+            ? 0
+            : (params.amount0 * params.reserve1) / params.reserve0;
+
         bool _swap0For1 = params.amount1 < _amount1Optimal;
         if (_swap0For1) {
             params.swapFee = _getSwapFee(_sender, token0, token1);
@@ -113,27 +123,44 @@ contract VanguardClassicPool is IClassicPool, ERC20Permit2, ReentrancyGuard {
         }
 
         // Adds mint fee to reserves (applies to invariant increase) if unbalanced.
-        (params.fee0, params.fee1) = _unbalancedMintFee(params.swapFee, params.amount0, params.amount1, _amount1Optimal, params.reserve0, params.reserve1);
+        (params.fee0, params.fee1) = _unbalancedMintFee(
+            params.swapFee,
+            params.amount0,
+            params.amount1,
+            _amount1Optimal,
+            params.reserve0,
+            params.reserve1
+        );
         params.reserve0 += params.fee0;
         params.reserve1 += params.fee1;
 
         // Calculates old invariant (where unbalanced fee added to) and, mint protocol fee if any.
-        params.oldInvariant = _computeInvariant(params.reserve0, params.reserve1);
+        params.oldInvariant = _computeInvariant(
+            params.reserve0,
+            params.reserve1
+        );
+
         bool _feeOn;
-        (_feeOn, params.totalSupply) = _mintProtocolFee(0, 0, params.oldInvariant);
+        (_feeOn, params.totalSupply) = _mintProtocolFee(
+            0,
+            0,
+            params.oldInvariant
+        );
 
         if (params.totalSupply == 0) {
             params.liquidity = params.newInvariant - MINIMUM_LIQUIDITY;
             _mint(address(0), MINIMUM_LIQUIDITY); // permanently lock on first mint.
         } else {
             // Calculates liquidity proportional to invariant growth.
-            params.liquidity = ((params.newInvariant - params.oldInvariant) * params.totalSupply) / params.oldInvariant;
+            params.liquidity =
+                ((params.newInvariant - params.oldInvariant) *
+                    params.totalSupply) /
+                params.oldInvariant;
         }
 
         // Mints liquidity for recipient.
-        if (params.liquidity == 0) {
-            revert InsufficientLiquidityMinted();
-        }
+        if (params.liquidity == 0) revert InsufficientLiquidityMinted();
+
         _mint(params.to, params.liquidity);
 
         // Calls callback with data.
@@ -151,7 +178,13 @@ contract VanguardClassicPool is IClassicPool, ERC20Permit2, ReentrancyGuard {
             invariantLast = params.newInvariant;
         }
 
-        emit Mint(msg.sender, params.amount0, params.amount1, params.liquidity, params.to);
+        emit Mint(
+            msg.sender,
+            params.amount0,
+            params.amount1,
+            params.liquidity,
+            params.to
+        );
 
         return params.liquidity;
     }
@@ -159,26 +192,30 @@ contract VanguardClassicPool is IClassicPool, ERC20Permit2, ReentrancyGuard {
     /// @dev Burns LP tokens sent to this contract.
     /// The router should ensure that sufficient pool tokens are received.
     function burn(
-        bytes calldata _data,
+        uint8 _withdrawMode,
+        address _to,
         address _sender,
         address _callback,
         bytes calldata _callbackData
-    ) external override nonReentrant returns (TokenAmount[] memory _amounts) {
+    ) external nonReentrant returns (TokenAmount[] memory _amounts) {
         ICallback.BaseBurnCallbackParams memory params;
 
-        (params.to, params.withdrawMode) = abi.decode(_data, (address, uint8));
+        (params.to, params.withdrawMode) = (_to, _withdrawMode);
         (params.balance0, params.balance1) = _balances();
         params.liquidity = balanceOf[address(this)];
 
         // Mints protocol fee if any.
         // Note `_mintProtocolFee` here will checks overflow.
         bool _feeOn;
-        (_feeOn, params.totalSupply) = _mintProtocolFee(params.balance0, params.balance1, 0);
+        (_feeOn, params.totalSupply) = _mintProtocolFee(
+            params.balance0,
+            params.balance1,
+            0
+        );
 
         // Calculates amounts of pool tokens proportional to balances.
-        params.amount0 = params.liquidity * params.balance0 / params.totalSupply;
-        params.amount1 = params.liquidity * params.balance1 / params.totalSupply;
-        //require(_amount0 != 0 || _amount1 != 0);
+        params.amount0 = (params.liquidity * params.balance0) / params.totalSupply;
+        params.amount1 = (params.liquidity * params.balance1) / params.totalSupply;
 
         // Burns liquidity and transfers pool tokens.
         _burn(address(this), params.liquidity);
@@ -212,32 +249,47 @@ contract VanguardClassicPool is IClassicPool, ERC20Permit2, ReentrancyGuard {
         _amounts[0] = TokenAmount(token0, params.amount0);
         _amounts[1] = TokenAmount(token1, params.amount1);
 
-        emit Burn(msg.sender, params.amount0, params.amount1, params.liquidity, params.to);
+        emit Burn(
+            msg.sender,
+            params.amount0,
+            params.amount1,
+            params.liquidity,
+            params.to
+        );
     }
 
     /// @dev Burns LP tokens sent to this contract and swaps one of the output tokens for another
     /// - i.e., the user gets a single token out by burning LP tokens.
     /// The router should ensure that sufficient pool tokens are received.
     function burnSingle(
-        bytes calldata _data,
+        uint8 _withdrawMode,
+        address _tokenOut,
+        address _to,
         address _sender,
         address _callback,
         bytes calldata _callbackData
-    ) external override nonReentrant returns (TokenAmount memory _tokenAmount) {
+    ) external nonReentrant returns (TokenAmount memory _tokenAmount) {
         ICallback.BaseBurnSingleCallbackParams memory params;
 
-        (params.tokenOut, params.to, params.withdrawMode) = abi.decode(_data, (address, address, uint8));
+        (params.tokenOut, params.to, params.withdrawMode) = (
+            _tokenOut, _to, _withdrawMode
+        );
+
         (params.balance0, params.balance1) = _balances();
         params.liquidity = balanceOf[address(this)];
 
         // Mints protocol fee if any.
         // Note `_mintProtocolFee` here will checks overflow.
         bool _feeOn;
-        (_feeOn, params.totalSupply) = _mintProtocolFee(params.balance0, params.balance1, 0);
+        (_feeOn, params.totalSupply) = _mintProtocolFee(
+            params.balance0,
+            params.balance1,
+            0
+        );
 
         // Calculates amounts of pool tokens proportional to balances.
-        params.amount0 = params.liquidity * params.balance0 / params.totalSupply;
-        params.amount1 = params.liquidity * params.balance1 / params.totalSupply;
+        params.amount0 = (params.liquidity * params.balance0) / params.totalSupply;
+        params.amount1 = (params.liquidity * params.balance1) / params.totalSupply;
 
         // Burns liquidity.
         _burn(address(this), params.liquidity);
@@ -253,11 +305,20 @@ contract VanguardClassicPool is IClassicPool, ERC20Permit2, ReentrancyGuard {
 
             params.tokenIn = token0;
             (params.amountSwapped, params.feeIn) = _getAmountOut(
-                params.swapFee, params.amount0, params.balance0 - params.amount0, params.balance1 - params.amount1, true
+                params.swapFee,
+                params.amount0,
+                params.balance0 - params.amount0,
+                params.balance1 - params.amount1,
+                true
             );
             params.amount1 += params.amountSwapped;
 
-            _transferTokens(token1, params.to, params.amount1, params.withdrawMode);
+            _transferTokens(
+                token1,
+                params.to,
+                params.amount1,
+                params.withdrawMode
+            );
             params.amountOut = params.amount1;
             params.amount0 = 0;
             params.balance1 -= params.amount1;
@@ -268,11 +329,20 @@ contract VanguardClassicPool is IClassicPool, ERC20Permit2, ReentrancyGuard {
 
             params.tokenIn = token1;
             (params.amountSwapped, params.feeIn) = _getAmountOut(
-                params.swapFee, params.amount1, params.balance0 - params.amount0, params.balance1 - params.amount1, false
+                params.swapFee,
+                params.amount1,
+                params.balance0 - params.amount0,
+                params.balance1 - params.amount1,
+                false
             );
             params.amount0 += params.amountSwapped;
 
-            _transferTokens(token0, params.to, params.amount0, params.withdrawMode);
+            _transferTokens(
+                token0,
+                params.to,
+                params.amount0,
+                params.withdrawMode
+            );
             params.amountOut = params.amount0;
             params.amount1 = 0;
             params.balance0 -= params.amount0;
@@ -299,20 +369,31 @@ contract VanguardClassicPool is IClassicPool, ERC20Permit2, ReentrancyGuard {
 
         _tokenAmount = TokenAmount(params.tokenOut, params.amountOut);
 
-        emit Burn(msg.sender, params.amount0, params.amount1, params.liquidity, params.to);
+        emit Burn(
+            msg.sender,
+            params.amount0,
+            params.amount1,
+            params.liquidity,
+            params.to
+        );
     }
 
     /// @dev Swaps one token for another - should be called via the router after transferring input tokens.
     /// The router should ensure that sufficient output tokens are received.
     function swap(
-        bytes calldata _data,
+        uint8 _withdrawMode,
+        address _tokenIn,
+        address _to,
         address _sender,
         address _callback,
         bytes calldata _callbackData
-    ) external override nonReentrant returns (TokenAmount memory _tokenAmount) {
+    ) external nonReentrant returns (TokenAmount memory _tokenAmount) {
         ICallback.BaseSwapCallbackParams memory params;
 
-        (params.tokenIn, params.to, params.withdrawMode) = abi.decode(_data, (address, address, uint8));
+        (params.tokenIn, params.to, params.withdrawMode) = (
+            _tokenIn, _to, _withdrawMode
+        );
+
         (params.reserve0, params.reserve1) = (reserve0, reserve1);
         (params.balance0, params.balance1) = _balances();
 
@@ -326,10 +407,23 @@ contract VanguardClassicPool is IClassicPool, ERC20Permit2, ReentrancyGuard {
             params.tokenOut = token1;
             params.amountIn = params.balance0 - params.reserve0;
 
-            (params.amountOut, params.feeIn) = _getAmountOut(params.swapFee, params.amountIn, params.reserve0, params.reserve1, true);
+            (params.amountOut, params.feeIn) = _getAmountOut(
+                params.swapFee,
+                params.amountIn,
+                params.reserve0,
+                params.reserve1,
+                true
+            );
             params.balance1 -= params.amountOut;
 
-            emit Swap(msg.sender, params.amountIn, 0, 0, params.amountOut, params.to);
+            emit Swap(
+                msg.sender,
+                params.amountIn,
+                0,
+                0,
+                params.amountOut,
+                params.to
+            );
         } else {
             //require(params.tokenIn == token1);
             params.swapFee = _getSwapFee(_sender, token1, token0);
@@ -337,22 +431,36 @@ contract VanguardClassicPool is IClassicPool, ERC20Permit2, ReentrancyGuard {
             params.tokenOut = token0;
             params.amountIn = params.balance1 - params.reserve1;
 
-            (params.amountOut, params.feeIn) = _getAmountOut(params.swapFee, params.amountIn, params.reserve0, params.reserve1, false);
+            (params.amountOut, params.feeIn) = _getAmountOut(
+                params.swapFee,
+                params.amountIn,
+                params.reserve0,
+                params.reserve1,
+                false
+            );
             params.balance0 -= params.amountOut;
 
-            emit Swap(msg.sender, 0, params.amountIn, params.amountOut, 0, params.to);
+            emit Swap(
+                msg.sender,
+                0,
+                params.amountIn,
+                params.amountOut,
+                0,
+                params.to
+            );
         }
 
         // Checks overflow.
-        if (params.balance0 > type(uint128).max) {
-            revert Overflow();
-        }
-        if (params.balance1 > type(uint128).max) {
-            revert Overflow();
-        }
+        if (params.balance0 > type(uint128).max) revert Overflow();
+        if (params.balance1 > type(uint128).max) revert Overflow();
 
         // Transfers output tokens.
-        _transferTokens(params.tokenOut, params.to, params.amountOut, params.withdrawMode);
+        _transferTokens(
+            params.tokenOut,
+            params.to,
+            params.amountOut,
+            params.withdrawMode
+        );
 
         // Calls callback with data.
         if (_callback != address(0)) {
@@ -373,16 +481,36 @@ contract VanguardClassicPool is IClassicPool, ERC20Permit2, ReentrancyGuard {
         _tokenAmount.amount = params.amountOut;
     }
 
-    function _getSwapFee(address _sender, address _tokenIn, address _tokenOut) private view returns (uint24 _swapFee) {
+    function _getSwapFee(
+        address _sender,
+        address _tokenIn,
+        address _tokenOut
+    ) private view returns (uint24 _swapFee) {
         _swapFee = getSwapFee(_sender, _tokenIn, _tokenOut, "");
     }
 
     /// @dev This function doesn't check the forwarder.
-    function getSwapFee(address _sender, address _tokenIn, address _tokenOut, bytes memory data) public view override returns (uint24 _swapFee) {
-        _swapFee = IPoolMaster(master).getSwapFee(address(this), _sender, _tokenIn, _tokenOut, data);
+    function getSwapFee(
+        address _sender,
+        address _tokenIn,
+        address _tokenOut,
+        bytes memory data
+    ) public view override returns (uint24 _swapFee) {
+        _swapFee = IPoolMaster(master).getSwapFee(
+            address(this),
+            _sender,
+            _tokenIn,
+            _tokenOut,
+            data
+        );
     }
 
-    function getProtocolFee() public view override returns (uint24 _protocolFee) {
+    function getProtocolFee()
+        public
+        view
+        override
+        returns (uint24 _protocolFee)
+    {
         _protocolFee = IPoolMaster(master).getProtocolFee(address(this));
     }
 
@@ -391,7 +519,24 @@ contract VanguardClassicPool is IClassicPool, ERC20Permit2, ReentrancyGuard {
         emit Sync(_balance0, _balance1);
     }
 
-    function _transferTokens(address token, address to, uint amount, uint8 withdrawMode) private {
+    /**
+        * @dev Transfer burn liquidity tokens or swap output tokens.
+        mode 0 - transfer to vault
+        mode !0 - withdraw {
+            if token == WETH || address(0) {
+                mode 1 - withdraw + unwrap WETH
+                mode 2 - withdraw + wrap ETH
+            } else {
+                mode 1..uint8.max - withdraw erc20
+            }
+        }
+    */
+    function _transferTokens(
+        address token,
+        address to,
+        uint amount,
+        uint8 withdrawMode
+    ) private {
         if (withdrawMode == 0) {
             IVault(vault).transfer(token, to, amount);
         } else {
@@ -417,14 +562,22 @@ contract VanguardClassicPool is IClassicPool, ERC20Permit2, ReentrancyGuard {
             return (0, 0);
         }
         if (_amount1 >= _amount1Optimal) {
-            _token1Fee = (_swapFee * (_amount1 - _amount1Optimal)) / (2 * MAX_FEE);
+            _token1Fee =
+                (_swapFee * (_amount1 - _amount1Optimal)) /
+                (2 * MAX_FEE);
         } else {
             uint _amount0Optimal = (_amount1 * _reserve0) / _reserve1;
-            _token0Fee = (_swapFee * (_amount0 - _amount0Optimal)) / (2 * MAX_FEE);
+            _token0Fee =
+                (_swapFee * (_amount0 - _amount0Optimal)) /
+                (2 * MAX_FEE);
         }
     }
 
-    function _mintProtocolFee(uint _reserve0, uint _reserve1, uint _invariant) private returns (bool _feeOn, uint _totalSupply) {
+    function _mintProtocolFee(
+        uint _reserve0,
+        uint _reserve1,
+        uint _invariant
+    ) private returns (bool _feeOn, uint _totalSupply) {
         _totalSupply = totalSupply;
 
         address _feeRecipient = IPoolMaster(master).getFeeRecipient();
@@ -448,7 +601,13 @@ contract VanguardClassicPool is IClassicPool, ERC20Permit2, ReentrancyGuard {
                         _mint(_feeRecipient, _liquidity);
 
                         // Notifies the fee recipient.
-                        IFeeRecipient(_feeRecipient).notifyFees(1, address(this), _liquidity, _protocolFee, "");
+                        IFeeRecipient(_feeRecipient).notifyFees(
+                            1,
+                            address(this),
+                            _liquidity,
+                            _protocolFee,
+                            ""
+                        );
 
                         _totalSupply += _liquidity; // update cached value.
                     }
@@ -460,22 +619,49 @@ contract VanguardClassicPool is IClassicPool, ERC20Permit2, ReentrancyGuard {
         }
     }
 
-    function getReserves() external view override returns (uint _reserve0, uint _reserve1) {
+    function getReserves()
+        external
+        view
+        override
+        returns (uint _reserve0, uint _reserve1)
+    {
         (_reserve0, _reserve1) = (reserve0, reserve1);
     }
 
-    function getAmountOut(address _tokenIn, uint _amountIn, address _sender) external view override returns (uint _amountOut) {
+    function getAmountOut(
+        address _tokenIn,
+        uint _amountIn,
+        address _sender
+    ) external view override returns (uint _amountOut) {
         (uint _reserve0, uint _reserve1) = (reserve0, reserve1);
         bool _swap0For1 = _tokenIn == token0;
         address _tokenOut = _swap0For1 ? token1 : token0;
-        (_amountOut,) = _getAmountOut(_getSwapFee(_sender, _tokenIn, _tokenOut), _amountIn, _reserve0, _reserve1, _swap0For1);
+
+        (_amountOut, ) = _getAmountOut(
+            _getSwapFee(_sender, _tokenIn, _tokenOut),
+            _amountIn,
+            _reserve0,
+            _reserve1,
+            _swap0For1
+        );
     }
 
-    function getAmountIn(address _tokenOut, uint _amountOut, address _sender) external view override returns (uint _amountIn) {
+    function getAmountIn(
+        address _tokenOut,
+        uint _amountOut,
+        address _sender
+    ) external view override returns (uint _amountIn) {
         (uint _reserve0, uint _reserve1) = (reserve0, reserve1);
         bool _swap1For0 = _tokenOut == token0;
         address _tokenIn = _swap1For0 ? token1 : token0;
-        _amountIn = _getAmountIn(_getSwapFee(_sender, _tokenIn, _tokenOut), _amountOut, _reserve0, _reserve1, _swap1For0);
+
+        _amountIn = _getAmountIn(
+            _getSwapFee(_sender, _tokenIn, _tokenOut),
+            _amountOut,
+            _reserve0,
+            _reserve1,
+            _swap1For0
+        );
     }
 
     function _getAmountOut(
@@ -489,7 +675,7 @@ contract VanguardClassicPool is IClassicPool, ERC20Permit2, ReentrancyGuard {
             _dy = 0;
         } else {
             uint _amountInWithFee = _amountIn * (MAX_FEE - _swapFee);
-            _feeIn = _amountIn * _swapFee / MAX_FEE;
+            _feeIn = (_amountIn * _swapFee) / MAX_FEE;
 
             if (_token0In) {
                 _dy = (_amountInWithFee * _reserve1) / (_reserve0 * MAX_FEE + _amountInWithFee);
@@ -517,13 +703,13 @@ contract VanguardClassicPool is IClassicPool, ERC20Permit2, ReentrancyGuard {
         }
     }
 
-    function _computeInvariant(uint _reserve0, uint _reserve1) private pure returns (uint _invariant) {
-        if (_reserve0 > type(uint128).max) {
-            revert Overflow();
-        }
-        if (_reserve1 > type(uint128).max) {
-            revert Overflow();
-        }
+    function _computeInvariant(
+        uint _reserve0,
+        uint _reserve1
+    ) private pure returns (uint _invariant) {
+        if (_reserve0 > type(uint128).max) revert Overflow();
+        if (_reserve1 > type(uint128).max) revert Overflow();
+
         _invariant = (_reserve0 * _reserve1).sqrt();
     }
 }

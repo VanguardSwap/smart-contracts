@@ -33,7 +33,7 @@ interface IPool {
 
     /// @dev Mints liquidity.
     function mint(
-        bytes calldata data,
+        address to,
         address sender,
         address callback,
         bytes calldata callbackData
@@ -41,7 +41,8 @@ interface IPool {
 
     /// @dev Burns liquidity.
     function burn(
-        bytes calldata data,
+        uint8 _withdrawMode,
+        address _to,
         address sender,
         address callback,
         bytes calldata callbackData
@@ -49,7 +50,9 @@ interface IPool {
 
     /// @dev Burns liquidity with single output token.
     function burnSingle(
-        bytes calldata data,
+        uint8 _withdrawMode,
+        address _tokenOut,
+        address _to,
         address sender,
         address callback,
         bytes calldata callbackData
@@ -57,7 +60,9 @@ interface IPool {
 
     /// @dev Swaps between tokens.
     function swap(
-        bytes calldata data,
+        uint8 _withdrawMode,
+        address _tokenIn,
+        address _to,
         address sender,
         address callback,
         bytes calldata callbackData
