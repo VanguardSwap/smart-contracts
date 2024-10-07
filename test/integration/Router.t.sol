@@ -92,7 +92,7 @@ contract RouterIntegrationTest is IntegrationTest {
         assertEq(pool.reserve1(), 1000 * 10**decimals);
     }
 
-    function _correctSetUp() internal pure {
+    function _correctSetUp() internal view {
         assertEq(feeRegistry.isFeeSender(address(vault)), true);
         assertEq(master.vault(), address(vault));
         assertEq(master.forwarderRegistry(), address(forwarderRegistry));
