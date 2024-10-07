@@ -3,11 +3,10 @@
 pragma solidity ^0.8.26;
 
 import {IFeeManager} from "./IFeeManager.sol";
-import {IForwarderRegistry} from "./IForwarderRegistry.sol";
 
 /// @dev The master contract to create pools and manage whitelisted factories.
 /// Inheriting the fee manager interface to support fee queries.
-interface IPoolMaster is IFeeManager, IForwarderRegistry {
+interface IPoolMaster is IFeeManager {
     event SetFactoryWhitelisted(address indexed factory, bool whitelisted);
     event UpdateForwarderRegistry(address indexed newForwarderRegistry);
     event UpdateFeeManager(address indexed newFeeManager);
@@ -28,9 +27,13 @@ interface IPoolMaster is IFeeManager, IForwarderRegistry {
 
     function feeManager() external view returns (address);
 
+    function forwarderRegistry() external view returns (address);
+
     function pools(uint) external view returns (address);
 
     function poolsLength() external view returns (uint);
+
+    function isForwarder(address forwarder) external view returns (bool);
 
     // Forwarder Registry
     function setForwarderRegistry(address) external;

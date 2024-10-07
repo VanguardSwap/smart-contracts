@@ -11,5 +11,10 @@ interface IFeeRegistry {
     error InvalidAddress();
     error AlreadySet();
 
+    function setSenderWhitelisted(
+        address sender,
+        bool isWhitelisted
+    ) external;
+
     function isFeeSender(address sender) external view returns (bool);
 }

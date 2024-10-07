@@ -114,10 +114,10 @@ abstract contract Helper {
         if (poolType == 1) {
             invariant = _sqrt(balance0 * balance1);
         } else {
-            uint256 adjustedReserve0 = balance0 *
-                IStablePool(pool).token0PrecisionMultiplier();
-            uint256 adjustedReserve1 = balance1 *
-                IStablePool(pool).token1PrecisionMultiplier();
+            // uint256 adjustedReserve0 = balance0 *
+            //     IStablePool(pool).token0PrecisionMultiplier();
+            // uint256 adjustedReserve1 = balance1 *
+            //     IStablePool(pool).token1PrecisionMultiplier();
         }
     }
 
@@ -158,7 +158,7 @@ abstract contract Helper {
         uint256 liquidity,
         uint256 balance,
         uint256 totalSupply
-    ) internal view returns (uint256) {
+    ) internal pure returns (uint256) {
         return (liquidity * balance) / totalSupply;
     }
 

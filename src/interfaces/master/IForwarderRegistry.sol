@@ -10,5 +10,7 @@ interface IForwarderRegistry {
     error AlreadyAdded();
     error NotAdded();
 
+    function addForwarder(address forwarder) external;
+
     function isForwarder(address forwarder) external view returns (bool);
 }
