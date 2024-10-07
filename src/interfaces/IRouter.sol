@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.26;
 
+import {IPool} from "src/interfaces/pool/IPool.sol";
+
 interface IRouter {
     enum FactoryType {
         CLASSIC,
@@ -52,4 +54,37 @@ interface IRouter {
     error NotEnoughLiquidityMinted();
     error TooLittleReceived();
     error Expired();
+
+    function addLiquidity(
+        AddLiquidityInfo calldata info,
+        address callback,
+        bytes calldata callbackData
+    ) external payable returns (uint256 liquidity);
+
+    function burnLiquidity(
+        address pool,
+        uint256 liquidity,
+        uint8 _withdrawMode,
+        address _to,
+        uint256[] calldata minAmounts,
+        address callback,
+        bytes calldata callbackData
+    ) external returns (IPool.TokenAmount[] memory amounts);
+
+    function burnLiquiditySingle(
+        address pool,
+        uint256 liquidity,
+        uint8 _withdrawMode,
+        address _tokenOut,
+        address _to,
+        uint256 minAmount,
+        address callback,
+        bytes memory callbackData
+    ) external returns (IPool.TokenAmount memory amountOut);
+
+    function swap(
+        SwapPath[] memory paths,
+        uint256 amountOutMin,
+        uint256 deadline
+    ) external payable returns (IPool.TokenAmount memory amountOut);
 }

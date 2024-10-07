@@ -2,8 +2,9 @@
 
 pragma solidity ^0.8.26;
 
-import {IPoolMaster, IForwarderRegistry, IFeeManager} from "../interfaces/master/IPoolMaster.sol";
+import {IPoolMaster, IFeeManager} from "../interfaces/master/IPoolMaster.sol";
 import {IPoolFactory} from "../interfaces/factory/IPoolFactory.sol";
+import {IForwarderRegistry} from "src/interfaces/master/IForwarderRegistry.sol";
 
 import {Ownable2Step, Ownable} from "openzeppelin-contracts/access/Ownable2Step.sol";
 

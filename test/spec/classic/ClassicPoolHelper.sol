@@ -319,8 +319,6 @@ abstract contract ClassicPoolHelper is Test, Helper {
         uint256 expectedAmount1
     ) internal {
         uint256 liquidityBalance = pool.balanceOf(wallet);
-        uint256 balance0Before = IERC20(token0).balanceOf(wallet);
-        uint256 balance1Before = IERC20(token1).balanceOf(wallet);
 
         uint256 _totalSupply = pool.totalSupply();
         uint256 poolBalance0 = vault.balanceOf(token0, poolAddress);

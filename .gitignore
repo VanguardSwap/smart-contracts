@@ -5,6 +5,9 @@ out/
 # Ignores development broadcast logs
 !/broadcast
 /broadcast/*/31337/
+
+# Story Iliad testnet
+/broadcast/*/1513/
 /broadcast/**/dry-run/
 
 # Docs
