@@ -41,8 +41,8 @@ interface IPool {
 
     /// @dev Burns liquidity.
     function burn(
-        uint8 _withdrawMode,
-        address _to,
+        uint8 withdrawMode,
+        address to,
         address sender,
         address callback,
         bytes calldata callbackData
@@ -50,9 +50,9 @@ interface IPool {
 
     /// @dev Burns liquidity with single output token.
     function burnSingle(
-        uint8 _withdrawMode,
-        address _tokenOut,
-        address _to,
+        uint8 withdrawMode,
+        address tokenOut,
+        address to,
         address sender,
         address callback,
         bytes calldata callbackData
@@ -60,9 +60,9 @@ interface IPool {
 
     /// @dev Swaps between tokens.
     function swap(
-        uint8 _withdrawMode,
-        address _tokenIn,
-        address _to,
+        uint8 withdrawMode,
+        address tokenIn,
+        address to,
         address sender,
         address callback,
         bytes calldata callbackData
