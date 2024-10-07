@@ -490,7 +490,7 @@ abstract contract ClassicPoolHelper is Test, Helper {
         uint256 amountOut;
     }
 
-    function _prepareSwapData() internal returns (SwapData[] memory swaps) {
+    function _prepareSwapData() internal view returns (SwapData[] memory swaps) {
         swaps = new SwapData[](4);
 
         swaps[0] = SwapData(_expandToDecimals(1), _expandToDecimals(4), _expandToDecimals(1), 1997997997997997997);
