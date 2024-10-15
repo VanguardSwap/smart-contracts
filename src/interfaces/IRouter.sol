@@ -21,6 +21,8 @@ interface IRouter {
     struct SwapPath {
         SwapStep[] steps;
         address tokenIn;
+        address tokenOut;
+        FactoryType factoryType;
         uint amountIn;
     }
 
