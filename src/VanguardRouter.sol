@@ -356,7 +356,18 @@ contract VanguardRouter is IRouter, SelfPermit, Multicall {
 
             // Prefund the first step.
             step = path.steps[0];
-            _transferFromSender(path.tokenIn, step.pool, path.amountIn);
+
+            address pool = step.pool;
+
+            if (pool == address(0)) {
+                address factory = path.factoryType == FactoryType.CLASSIC
+                    ? classicFactory
+                    : stableFactory;
+                
+                pool = IFactory(factory).getPool(path.tokenIn, path.tokenOut);
+            }
+
+            _transferFromSender(path.tokenIn, pool, path.amountIn);
 
             // Cache steps length.
             stepsLength = path.steps.length;
@@ -364,7 +375,7 @@ contract VanguardRouter is IRouter, SelfPermit, Multicall {
             for (j = 0; j < stepsLength; ++j) {
                 if (j == stepsLength - 1) {
                     // Accumulate output amount at the last step.
-                    tokenAmount = IBasePool(step.pool).swap(
+                    tokenAmount = IBasePool(pool).swap(
                         step.withdrawMode,
                         step.tokenIn,
                         step.to,
@@ -379,7 +390,7 @@ contract VanguardRouter is IRouter, SelfPermit, Multicall {
                     break;
                 } else {
                     // Swap and send tokens to the next step.
-                    IBasePool(step.pool).swap(
+                    IBasePool(pool).swap(
                         step.withdrawMode,
                         step.tokenIn,
                         step.to,
