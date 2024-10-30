@@ -79,23 +79,28 @@ contract VanguardRouter is IRouter, SelfPermit, Multicall {
         TokenInput[] memory inputs = info.tokenInputs;
         uint256 n = inputs.length;
 
-        TokenInput memory input;
-
-        address tokenA = inputs[0].token;
-        address tokenB = inputs[1].token;
-
-        address factory = info.factoryType == FactoryType.CLASSIC
-            ? classicFactory
-            : stableFactory;
-
-        address pool = IFactory(factory).getPool(tokenA, tokenB);
+        address pool = info.pool;
 
         if (pool == address(0)) {
-            pool = IFactory(factory).createPool(tokenA, tokenB);
+            address tokenA = inputs[0].token;
+            address tokenB = inputs[1].token;
+
+            if (tokenA == NATIVE_ETH) tokenA = wETH;
+            if (tokenB == NATIVE_ETH) tokenB = wETH;
+
+            address factory = info.factoryType == FactoryType.CLASSIC
+                ? classicFactory
+                : stableFactory;
+
+            pool = IFactory(factory).getPool(tokenA, tokenB);
+
+            if (pool == address(0)) {
+                pool = IFactory(factory).createPool(tokenA, tokenB);
+            }
         }
 
         for (uint256 i; i < n; ++i) {
-            input = inputs[i];
+            TokenInput memory input = inputs[i];
 
             _transferFromSender(input.token, pool, input.amount);
         }
@@ -293,7 +298,7 @@ contract VanguardRouter is IRouter, SelfPermit, Multicall {
         uint256 minAmount,
         address callback,
         bytes memory callbackData
-    ) external returns (IPool.TokenAmount memory amountOut) {
+    ) external override returns (IPool.TokenAmount memory amountOut) {
         amountOut = _transferAndBurnLiquiditySingle(
             pool,
             liquidity,
@@ -364,7 +369,9 @@ contract VanguardRouter is IRouter, SelfPermit, Multicall {
                     ? classicFactory
                     : stableFactory;
                 
-                pool = IFactory(factory).getPool(path.tokenIn, path.tokenOut);
+                address tokenIn = path.tokenIn == NATIVE_ETH ? wETH : path.tokenIn;
+
+                pool = IFactory(factory).getPool(tokenIn, path.tokenOut);
             }
 
             _transferFromSender(path.tokenIn, pool, path.amountIn);

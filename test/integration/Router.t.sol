@@ -14,6 +14,8 @@ import {IBasePoolFactory as IFactory} from "src/interfaces/factory/IBasePoolFact
 import {IClassicPool} from "src/interfaces/pool/IClassicPool.sol";
 import {IRouter} from "src/interfaces/IRouter.sol";
 import {TestERC20} from "test/mocks/TestERC20.sol";
+import {TestWETH9} from "test/mocks/TestWETH9.sol";
+import {IWETH} from "src/interfaces/IWETH.sol";
 
 import {TestnetDeploy} from "deploy/testnet/TestnetDeploy.s.sol";
 
@@ -35,6 +37,8 @@ contract RouterIntegrationTest is IntegrationTest {
 
     TestERC20 internal tokenA = new TestERC20(totalSupply, decimals);
     TestERC20 internal tokenB = new TestERC20(totalSupply, decimals);
+    address wIP = 0x6e990040Fd9b06F98eFb62A147201696941680b5; // Story Testnet wIP
+    IWETH internal wIPContract = IWETH(wIP);
     address internal token0;
     address internal token1;
 
@@ -59,6 +63,10 @@ contract RouterIntegrationTest is IntegrationTest {
             ? (address(tokenA), address(tokenB))
             : (address(tokenB), address(tokenA));
 
+        TestWETH9 awesomeContract = new TestWETH9();
+        bytes memory code = address(awesomeContract).code;
+        vm.etch(wIP, code);
+
         deal(token0, address(this), _expandToDecimals(10000));
         deal(token1, address(this), _expandToDecimals(10000));
 
@@ -75,6 +83,7 @@ contract RouterIntegrationTest is IntegrationTest {
         IRouter.AddLiquidityInfo memory info = IRouter.AddLiquidityInfo({
             factoryType: factoryType,
             tokenInputs: tokenInputs,
+            pool: address(0),
             to: address(this),
             minLiquidity: _expandToDecimals(100)
         });
@@ -151,6 +160,57 @@ contract RouterIntegrationTest is IntegrationTest {
 
         assertEq(IERC20(token0).balanceOf(address(this)), _expandToDecimals(10000) - _expandToDecimals(1000) - _expandToDecimals(100));
         assertEq(IERC20(token1).balanceOf(address(this)), _expandToDecimals(10000) - _expandToDecimals(1000) + amountOut);
+    }
+
+    function test_step3_createPoolUsingIP() public {
+        test_step2_swapTokensByPoolInput();
+
+        IRouter.FactoryType factoryType = IRouter.FactoryType.CLASSIC;
+        IRouter.TokenInput[] memory tokenInputs = new IRouter.TokenInput[](2);
+        tokenInputs[0] = IRouter.TokenInput({token: address(0), amount: _expandToDecimals(1000)});
+        tokenInputs[1] = IRouter.TokenInput({token: address(tokenA), amount: _expandToDecimals(1000)});
+
+        (address token0Address, address token1Address) = wIP < address(tokenA)
+            ? (wIP, address(tokenA))
+            : (address(tokenA), wIP);
+
+        IRouter.AddLiquidityInfo memory info = IRouter.AddLiquidityInfo({
+            factoryType: factoryType,
+            tokenInputs: tokenInputs,
+            pool: address(0),
+            to: address(this),
+            minLiquidity: _expandToDecimals(100)
+        });
+
+        router.addLiquidity{value: _expandToDecimals(1000)}(info, address(0), new bytes(0));
+
+        address poolAddress = factory.getPool(token0Address, token1Address);
+        pool = IClassicPool(poolAddress);
+
+        assertEq(pool.token0(), token0Address);
+        assertEq(pool.token1(), token1Address);
+        assertEq(pool.vault(), address(vault));
+        assertEq(pool.master(), address(master));
+        assertEq(pool.poolType(), 1);
+        assertEq(pool.reserve0(), _expandToDecimals(1000));
+        assertEq(pool.reserve1(), _expandToDecimals(1000));
+
+        // Add liquidity by provide pool address
+        info.pool = poolAddress;
+        router.addLiquidity{value: _expandToDecimals(1000)}(info, address(0), new bytes(0));
+
+        assertEq(pool.reserve0(), _expandToDecimals(2000));
+        assertEq(pool.reserve1(), _expandToDecimals(2000));
+
+        // Add liquidity by wrapped IP
+        wIPContract.deposit{value: _expandToDecimals(1000)}();
+        wIPContract.approve(address(router), _expandToDecimals(1000));
+
+        info.tokenInputs[0].token = wIP;
+        router.addLiquidity(info, address(0), new bytes(0));
+
+        assertEq(pool.reserve0(), _expandToDecimals(3000));
+        assertEq(pool.reserve1(), _expandToDecimals(3000));
     }
 
     function _correctSetUp() internal view {

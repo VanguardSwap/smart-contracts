@@ -49,6 +49,7 @@ interface IRouter {
     struct AddLiquidityInfo {
         FactoryType factoryType;
         TokenInput[] tokenInputs;
+        address pool;
         address to;
         uint256 minLiquidity;
     }
